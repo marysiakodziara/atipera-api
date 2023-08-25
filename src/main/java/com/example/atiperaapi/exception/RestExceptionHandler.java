@@ -2,11 +2,14 @@ package com.example.atiperaapi.exception;
 
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 
 @Order(Ordered.HIGHEST_PRECEDENCE)
@@ -22,14 +25,18 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         return new ResponseEntity<>(errorResponse, HttpStatus.NOT_FOUND);
     }
 
-    @ExceptionHandler(NotSupportedHeaderException.class)
-    protected ResponseEntity<ErrorResponse> handleNotSupportedHeader(NotSupportedHeaderException ex) {
+    @Override
+    public ResponseEntity<Object> handleHttpMediaTypeNotAcceptable(
+            HttpMediaTypeNotAcceptableException ex,
+            HttpHeaders headers,
+            HttpStatusCode status,
+            WebRequest request) {
         ErrorResponse errorResponse = ErrorResponse.builder()
                 .status(HttpStatus.NOT_ACCEPTABLE.value())
-                .message(ex.getMessage())
+                .message("Accept header should be: " + headers)
                 .build();
         return ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE)
-                .header("Content-Type", "application/xml")
+                .header("Content-Type", "application/json")
                 .body(errorResponse);
     }
 }
