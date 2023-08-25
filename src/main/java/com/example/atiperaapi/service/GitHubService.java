@@ -1,64 +1,54 @@
 package com.example.atiperaapi.service;
 
-import com.example.atiperaapi.exception.NotSupportedHeaderException;
 import com.example.atiperaapi.exception.UserNotFoundException;
 import com.example.atiperaapi.model.Branch;
 import com.example.atiperaapi.model.GitHubRepo;
-import com.google.gson.Gson;
-import com.google.gson.reflect.TypeToken;
-import com.squareup.okhttp.OkHttpClient;
-import com.squareup.okhttp.Request;
-import com.squareup.okhttp.Response;
-import java.io.IOException;
-import java.lang.reflect.Type;
-import java.util.List;
-import java.util.stream.Collectors;
+import com.fasterxml.jackson.databind.JsonNode;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 
 @Service
 public class GitHubService {
 
-    public List<GitHubRepo> getUsersRepositories(String username) throws IOException {
-        OkHttpClient client = new OkHttpClient();
-        Request request = new Request.Builder()
-                .url("https://api.github.com/users/" + username + "/repos")
-                .get()
-                .build();
-        Response response = client.newCall(request).execute();
+    private final WebClient webClient;
 
-        if (response.code() == 200) {
-            Gson gson = new Gson();
-            String responseBody = response.body().string();
-            Type listType = new TypeToken<List<GitHubRepo>>(){}.getType();
-            List<GitHubRepo> gitHubReposAll = gson.fromJson(responseBody, listType);
-            List<GitHubRepo> gitHubRepos = gitHubReposAll
-                    .stream()
-                    .filter(repo -> !repo.isFork())
-                    .toList();
-            gitHubRepos.forEach(repo -> {
-                try {
-                    repo.setBranches(getBranches(username, repo.getName()));
-                } catch (IOException e) {
-                    throw new RuntimeException(e);
-                }
-            });
-            return gitHubRepos;
-        } else {
-            throw new UserNotFoundException("User with given username does not exist");
-        }
+    public GitHubService(WebClient.Builder webClientBuilder) {
+        this.webClient = webClientBuilder.build();
     }
 
-    public List<Branch> getBranches(String username, String repositoryName) throws IOException {
-        OkHttpClient client = new OkHttpClient();
-        Request request = new Request.Builder()
-                .url("https://api.github.com/repos/" + username + "/" + repositoryName + "/branches")
-                .get()
-                .build();
+    @Value("${github.api.repo.url}")
+    private String GITHUB_API_REPO_URL;
 
-        Response response = client.newCall(request).execute();
-        Gson gson = new Gson();
-        String responseBody = response.body().string();
-        Type listType = new TypeToken<List<Branch>>(){}.getType();
-        return gson.fromJson(responseBody, listType);
+    @Value("${github.api.branches.url}")
+    private String GITHUB_API_BRANCHES_URL;
+
+    public Flux<GitHubRepo> getUserRepositories(String username) {
+        String url = String.format(GITHUB_API_REPO_URL, username);
+        return webClient.get().uri(url).retrieve().onStatus(
+                HttpStatus.NOT_FOUND::equals,
+                clientResponse -> Mono.error(new UserNotFoundException("User with given username does not exist")))
+                .bodyToFlux(JsonNode.class)
+                .filter(repo -> !repo.get("fork").asBoolean())
+                .publishOn(Schedulers.boundedElastic())
+                .map(repo -> GitHubRepo.builder()
+                        .name(repo.get("name").asText())
+                        .owner(repo.get("owner").get("login").asText())
+                        .branches(getBranches(username, repo.get("name").asText()).collectList().block())
+                        .build());
+    }
+
+    public Flux<Branch> getBranches(String username, String repositoryName) {
+        String url = String.format(GITHUB_API_BRANCHES_URL, username, repositoryName);
+        return webClient.get().uri(url).retrieve()
+                .bodyToFlux(JsonNode.class)
+                .map(branch -> Branch.builder()
+                        .name(branch.get("name").asText())
+                        .lastCommitSha(branch.get("commit").get("sha").asText())
+                        .build());
     }
 }

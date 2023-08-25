@@ -3,14 +3,13 @@ package com.example.atiperaapi.controller;
 import com.example.atiperaapi.exception.NotSupportedHeaderException;
 import com.example.atiperaapi.model.GitHubRepo;
 import com.example.atiperaapi.service.GitHubService;
-import java.io.IOException;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import reactor.core.publisher.Flux;
 
 @RestController
 @RequiredArgsConstructor
@@ -20,12 +19,12 @@ public class GitHubController {
     private final GitHubService gitHubService;
 
     @GetMapping
-    public List<GitHubRepo> getUsersRepositories(
+    public Flux<GitHubRepo> getUsersRepositories(
             @RequestParam String username,
-            @RequestHeader(name = "Accept") String acceptHeader) throws IOException {
+            @RequestHeader(name = "Accept") String acceptHeader) {
         if ("application/xml".equals(acceptHeader)) {
             throw new NotSupportedHeaderException("The application does not support XML response");
         }
-        return gitHubService.getUsersRepositories(username);
+        return gitHubService.getUserRepositories(username);
     }
 }
