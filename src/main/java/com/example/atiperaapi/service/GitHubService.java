@@ -12,6 +12,7 @@ import com.squareup.okhttp.Response;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -29,7 +30,11 @@ public class GitHubService {
             Gson gson = new Gson();
             String responseBody = response.body().string();
             Type listType = new TypeToken<List<GitHubRepo>>(){}.getType();
-            List<GitHubRepo> gitHubRepos = gson.fromJson(responseBody, listType);
+            List<GitHubRepo> gitHubReposAll = gson.fromJson(responseBody, listType);
+            List<GitHubRepo> gitHubRepos = gitHubReposAll
+                    .stream()
+                    .filter(repo -> !repo.isFork())
+                    .toList();
             gitHubRepos.forEach(repo -> {
                 try {
                     repo.setBranches(getBranches(username, repo.getName()));
