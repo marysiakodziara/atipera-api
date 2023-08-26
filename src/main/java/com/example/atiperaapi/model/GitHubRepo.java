@@ -9,7 +9,7 @@ import lombok.Setter;
 @Setter
 @Builder
 public class GitHubRepo {
-    private String name;
-    private String owner;
-    private List<Branch> branches;
+    public String name;
+    public String owner;
+    public List<Branch> branches;
 }
