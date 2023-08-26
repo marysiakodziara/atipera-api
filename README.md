@@ -5,6 +5,7 @@ This project provides a user-friendly way to retrieve information about a given 
 - [Features](#features)
 - [Error Handling](#error_handling)
 - [Endpoints](#endpoints)
+- [Tests](#tests)
 
 ## Features <a name="features"/>
 * **List Repositories:**
@@ -37,4 +38,7 @@ to application/json to retrieve a list of the user's repositories that are not f
 GET /api/repositories?username={username}
 Accept: application/json
 ```
+
+## Tests <a name="tests"/>
+> The project includes a comprehensive set of tests to ensure the functionality and reliability of the GitHubController using the JUnit and Spring WebTestClient frameworks.
   
