@@ -5,7 +5,7 @@ import lombok.Builder;
 
 @Builder
 @JsonSerialize
-public class ErrorResponse {
+public class ErrorResponseBody {
     public int status;
     public String message;
 }
