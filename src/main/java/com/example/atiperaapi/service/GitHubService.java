@@ -29,26 +29,38 @@ public class GitHubService {
 
     public Flux<GitHubRepo> getUserRepositories(String username) {
         String url = String.format(GITHUB_API_REPO_URL, username);
-        return webClient.get().uri(url).retrieve().onStatus(
+        return webClient
+                .get()
+                .uri(url).retrieve().onStatus(
                 HttpStatus.NOT_FOUND::equals,
                 clientResponse -> Mono.error(new UserNotFoundException("User with given username does not exist")))
                 .bodyToFlux(JsonNode.class)
                 .filter(repo -> !repo.get("fork").asBoolean())
-                .publishOn(Schedulers.boundedElastic())
-                .map(repo -> GitHubRepo.builder()
-                        .name(repo.get("name").asText())
-                        .owner(repo.get("owner").get("login").asText())
-                        .branches(getBranches(username, repo.get("name").asText()).collectList().block())
-                        .build());
+                .flatMap(repo -> {
+                    String repoName = repo.get("name").asText();
+                    String owner = repo.get("owner").get("login").asText();
+                    Flux<Branch> branches = getBranches(owner, repoName)
+                            .subscribeOn(Schedulers.parallel());
+
+                    return branches.collectList()
+                            .zipWith(Mono.just(owner), (branchList, repoOwner) ->
+                                    GitHubRepo.builder()
+                                            .name(repoName)
+                                            .owner(repoOwner)
+                                            .branches(branchList)
+                                            .build()
+                            );
+                });
     }
 
     public Flux<Branch> getBranches(String username, String repositoryName) {
         String url = String.format(GITHUB_API_BRANCHES_URL, username, repositoryName);
         return webClient.get().uri(url).retrieve()
                 .bodyToFlux(JsonNode.class)
+                .onErrorResume(ex -> Mono.empty())
                 .map(branch -> Branch.builder()
-                        .name(branch.get("name").asText())
-                        .lastCommitSha(branch.get("commit").get("sha").asText())
-                        .build());
+                    .name(branch.get("name").asText())
+                    .lastCommitSha(branch.get("commit").get("sha").asText())
+                    .build());
     }
 }
