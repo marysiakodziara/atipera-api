@@ -1,5 +1,5 @@
 # Atipera-api
-Welcome to the Atipera-api project! This project offers a user-friendly way to access information about a given user's repositories on GitHub using reactive programming and Spring WebFlux.
+Welcome to the Atipera-api project! This project offers a user-friendly way to access information about a given user's repositories on GitHub using __`reactive programming and Spring WebFlux`__.
 
 ## Table of Contents
 - [Features](#features)
