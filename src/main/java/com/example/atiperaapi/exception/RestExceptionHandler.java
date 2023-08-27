@@ -21,12 +21,8 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
     protected Mono<ResponseEntity<Object>> handleNotAcceptableStatusException(
             NotAcceptableStatusException ex, HttpHeaders headers, HttpStatusCode status,
             ServerWebExchange exchange) {
-
-        ErrorResponseBody errorResponseBody = ErrorResponseBody.builder()
-                .status(HttpStatus.NOT_ACCEPTABLE.value())
-                .message("Accept header should be: " + headers)
-                .build();
-
+        String message = "Accept header should be: " + headers;
+        ErrorResponseBody errorResponseBody = new ErrorResponseBody(HttpStatus.NOT_ACCEPTABLE.value(), message);
         return Mono.just(ResponseEntity.status(HttpStatus.NOT_ACCEPTABLE)
                 .header("Content-Type", "application/json")
                 .body(errorResponseBody));
@@ -34,10 +30,7 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(UserNotFoundException.class)
     protected ResponseEntity<ErrorResponseBody> handleUserNotFound(UserNotFoundException ex) {
-        ErrorResponseBody errorResponseBody = ErrorResponseBody.builder()
-                .status(HttpStatus.NOT_FOUND.value())
-                .message(ex.getMessage())
-                .build();
+        ErrorResponseBody errorResponseBody = new ErrorResponseBody(HttpStatus.NOT_FOUND.value(), ex.getMessage());
         return new ResponseEntity<>(errorResponseBody, HttpStatus.NOT_FOUND);
     }
 

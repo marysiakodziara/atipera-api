@@ -3,6 +3,7 @@ package com.example.atiperaapi.service;
 import com.example.atiperaapi.exception.UserNotFoundException;
 import com.example.atiperaapi.model.Branch;
 import com.example.atiperaapi.model.GitHubRepo;
+import com.example.atiperaapi.out.BranchOut;
 import com.example.atiperaapi.out.GitHubRepoOut;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,11 +43,12 @@ public class GitHubService {
         Flux<List<Branch>> branchesFlux =
                 repoFlux.flatMap(repo -> getBranches(repo.owner().login(), repo.name()).collectList());
 
-        return repoFlux.zipWith(branchesFlux, (repo, branches) -> GitHubRepoOut.builder()
-                .name(repo.name())
-                .owner(repo.owner().login())
-                .branches(branches)
-                .build());
+        return repoFlux.zipWith(branchesFlux, (repo, branches) -> {
+            List<BranchOut> branchOuts = branches.stream()
+                    .map(branch -> new BranchOut(branch.name(), branch.commit().sha()))
+                    .toList();
+            return new GitHubRepoOut(repo.name(), repo.owner().login(), branchOuts);
+        });
     }
 
     public Flux<Branch> getBranches(String username, String repositoryName) {

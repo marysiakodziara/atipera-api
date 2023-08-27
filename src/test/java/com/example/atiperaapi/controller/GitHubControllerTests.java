@@ -1,14 +1,9 @@
 package com.example.atiperaapi.controller;
 
 import com.example.atiperaapi.exception.UserNotFoundException;
-import com.example.atiperaapi.model.Branch;
-import com.example.atiperaapi.model.Commit;
+import com.example.atiperaapi.out.BranchOut;
 import com.example.atiperaapi.out.GitHubRepoOut;
-import com.example.atiperaapi.serialization.CommitSerializer;
 import com.example.atiperaapi.service.GitHubService;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -40,23 +35,15 @@ public class GitHubControllerTests {
     private GitHubService gitHubService;
 
     @Test
-    public void testGetUserRepositories_success() throws JsonProcessingException {
+    public void testGetUserRepositories_success() {
         // given
-        Commit commit = new Commit("test-sha");
-        Branch branch = new Branch("master", commit);
+        BranchOut branch = new BranchOut("master", "test-sha");
         GitHubRepoOut repo = new GitHubRepoOut("test-name", "test-owner",  List.of(branch));
 
-        final String URI_TO_TEST = String.format("/api/v1/github?username=%s", repo.getOwner());
+        final String URI_TO_TEST = String.format("/api/v1/github?username=%s", repo.owner());
 
         given(gitHubService.getUserRepositories(anyString())).willReturn(Flux.just(repo));
 
-        SimpleModule module = new SimpleModule();
-        module.addSerializer(Commit.class, new CommitSerializer());
-
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(module);
-
-        String expectedResponseBody = objectMapper.writeValueAsString(Collections.singletonList(repo));
         // when
         webTestClient
                 .get()
@@ -64,8 +51,8 @@ public class GitHubControllerTests {
                 .exchange()
                 // then
                 .expectStatus().isOk()
-                .expectBody(String.class)
-                .isEqualTo(expectedResponseBody);
+                .expectBody(GitHubRepoOut.class)
+                .isEqualTo(repo);
     }
 
 
@@ -92,22 +79,14 @@ public class GitHubControllerTests {
     }
 
     @Test
-    public void testGetUserRepositories_successOnErrorInGetBranches() throws JsonProcessingException {
+    public void testGetUserRepositories_successOnErrorInGetBranches() {
         // given
         GitHubRepoOut repo = new GitHubRepoOut("test-name", "test-owner", Collections.emptyList());
 
-        final String URI_TO_TEST = String.format("/api/v1/github?username=%s", repo.getOwner());
+        final String URI_TO_TEST = String.format("/api/v1/github?username=%s", repo.owner());
 
         given(gitHubService.getUserRepositories(anyString())).willReturn(Flux.just(repo));
         given(gitHubService.getBranches(anyString(), anyString())).willReturn(Flux.error(new RuntimeException()));
-
-        SimpleModule module = new SimpleModule();
-        module.addSerializer(Commit.class, new CommitSerializer());
-
-        ObjectMapper objectMapper = new ObjectMapper();
-        objectMapper.registerModule(module);
-
-        String expectedResponseBody = objectMapper.writeValueAsString(Collections.singletonList(repo));
 
         // when
         webTestClient
@@ -116,8 +95,8 @@ public class GitHubControllerTests {
                 .exchange()
                 // then
                 .expectStatus().isOk()
-                .expectBody(String.class)
-                .isEqualTo(expectedResponseBody);
+                .expectBody(GitHubRepoOut.class)
+                .isEqualTo(repo);
     }
 
     @Test
