@@ -9,6 +9,6 @@ import java.io.IOException;
 public class CommitSerializer extends JsonSerializer<Commit> {
     @Override
     public void serialize(Commit commit, JsonGenerator jsonGenerator, SerializerProvider serializerProvider) throws IOException {
-        jsonGenerator.writeString(commit.getSha());
+        jsonGenerator.writeString(commit.sha());
     }
 }

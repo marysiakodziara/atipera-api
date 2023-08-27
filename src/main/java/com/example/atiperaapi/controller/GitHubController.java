@@ -1,6 +1,7 @@
 package com.example.atiperaapi.controller;
 
 import com.example.atiperaapi.model.GitHubRepo;
+import com.example.atiperaapi.out.GitHubRepoOut;
 import com.example.atiperaapi.service.GitHubService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -17,7 +18,7 @@ public class GitHubController {
     private final GitHubService gitHubService;
 
     @GetMapping(headers = "Accept=application/json")
-    public Flux<GitHubRepo> getUsersRepositories(
+    public Flux<GitHubRepoOut> getUsersRepositories(
             @RequestParam String username) {
         return gitHubService.getUserRepositories(username);
     }

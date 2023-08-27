@@ -1,12 +1,10 @@
-package com.example.atiperaapi;
+package com.example.atiperaapi.controller;
 
 import com.example.atiperaapi.exception.UserNotFoundException;
 import com.example.atiperaapi.model.Branch;
 import com.example.atiperaapi.model.Commit;
-import com.example.atiperaapi.model.GitHubRepo;
-import com.example.atiperaapi.model.Owner;
+import com.example.atiperaapi.out.GitHubRepoOut;
 import com.example.atiperaapi.serialization.CommitSerializer;
-import com.example.atiperaapi.serialization.OwnerSerializer;
 import com.example.atiperaapi.service.GitHubService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,6 +13,7 @@ import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -24,8 +23,10 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.never;
 
 @ExtendWith(SpringExtension.class)
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
@@ -43,15 +44,13 @@ public class GitHubControllerTests {
         // given
         Commit commit = new Commit("test-sha");
         Branch branch = new Branch("master", commit);
-        Owner owner = new Owner("test-owner");
-        GitHubRepo repo = new GitHubRepo("test-name", owner, List.of(branch));
+        GitHubRepoOut repo = new GitHubRepoOut("test-name", "test-owner",  List.of(branch));
 
         final String URI_TO_TEST = String.format("/api/v1/github?username=%s", repo.getOwner());
 
         given(gitHubService.getUserRepositories(anyString())).willReturn(Flux.just(repo));
 
         SimpleModule module = new SimpleModule();
-        module.addSerializer(Owner.class, new OwnerSerializer());
         module.addSerializer(Commit.class, new CommitSerializer());
 
         ObjectMapper objectMapper = new ObjectMapper();
@@ -95,8 +94,7 @@ public class GitHubControllerTests {
     @Test
     public void testGetUserRepositories_successOnErrorInGetBranches() throws JsonProcessingException {
         // given
-        Owner owner = new Owner("test-owner");
-        GitHubRepo repo = new GitHubRepo("test-name", owner, Collections.emptyList());
+        GitHubRepoOut repo = new GitHubRepoOut("test-name", "test-owner", Collections.emptyList());
 
         final String URI_TO_TEST = String.format("/api/v1/github?username=%s", repo.getOwner());
 
@@ -104,7 +102,6 @@ public class GitHubControllerTests {
         given(gitHubService.getBranches(anyString(), anyString())).willReturn(Flux.error(new RuntimeException()));
 
         SimpleModule module = new SimpleModule();
-        module.addSerializer(Owner.class, new OwnerSerializer());
         module.addSerializer(Commit.class, new CommitSerializer());
 
         ObjectMapper objectMapper = new ObjectMapper();
@@ -137,5 +134,7 @@ public class GitHubControllerTests {
                 .exchange()
                 // then
                 .expectStatus().isEqualTo(406);
+
+        Mockito.verify(gitHubService, never()).getUserRepositories(any());
     }
 }
