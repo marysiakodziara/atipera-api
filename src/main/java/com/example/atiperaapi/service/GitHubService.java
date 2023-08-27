@@ -33,32 +33,30 @@ public class GitHubService {
     private String GITHUB_API_BRANCHES_URL;
 
     public Flux<GitHubRepo> getUserRepositories(String username) {
-        String url = String.format(GITHUB_API_REPO_URL, username);
+        final String URL = String.format(GITHUB_API_REPO_URL, username);
+        final String USER_NOT_FOUND_MESSAGE = "User with given username does not exist";
+        final String REPO_FORK_FIELD = "fork";
+
         return webClient
                 .get()
-                .uri(url).retrieve().onStatus(
-                HttpStatus.NOT_FOUND::equals,
-                clientResponse -> Mono.error(new UserNotFoundException("User with given username does not exist")))
+                .uri(URL).retrieve().onStatus(
+                        HttpStatus.NOT_FOUND::equals,
+                        clientResponse -> Mono.error(new UserNotFoundException(USER_NOT_FOUND_MESSAGE)))
                 .bodyToFlux(JsonNode.class)
-                .filter(repo -> !repo.get("fork").asBoolean())
+                .filter(repo -> !repo.get(REPO_FORK_FIELD).asBoolean())
                 .map(node -> mapper.convertValue(node, GitHubRepo.class))
-                .flatMap(repo -> {
-                    Flux<Branch> branches = getBranches(repo.getOwner().login, repo.getName())
-                            .subscribeOn(Schedulers.parallel());
-
-                    return branches.collectList()
-                            .zipWith(Mono.just(repo.getOwner().login), (branchList, repoOwner) ->
-                                    {
-                                        repo.setBranches(branchList);
-                                        return repo;
-                                    }
-                            );
-                });
+                .flatMap(repo -> getBranches(repo.getOwner().login, repo.getName())
+                        .subscribeOn(Schedulers.boundedElastic())
+                        .collectList()
+                        .map(branchList -> {
+                            repo.setBranches(branchList);
+                            return repo;
+                        }));
     }
 
     public Flux<Branch> getBranches(String username, String repositoryName) {
-        String url = String.format(GITHUB_API_BRANCHES_URL, username, repositoryName);
-        return webClient.get().uri(url).retrieve()
+        final String URL = String.format(GITHUB_API_BRANCHES_URL, username, repositoryName);
+        return webClient.get().uri(URL).retrieve()
                 .bodyToFlux(JsonNode.class)
                 .onErrorResume(ex -> Mono.empty())
                 .map(node -> mapper.convertValue(node, Branch.class));
