@@ -1,5 +1,6 @@
 package com.example.atiperaapi.service;
 
+import com.example.atiperaapi.exception.GitHubResponseException;
 import com.example.atiperaapi.exception.UserNotFoundException;
 import com.example.atiperaapi.model.Branch;
 import com.example.atiperaapi.model.GitHubRepo;
@@ -28,16 +29,26 @@ public class GitHubService {
     @Value("${github.api.branches.url}")
     private String GITHUB_API_BRANCHES_URL;
     private final static String USER_NOT_FOUND_MESSAGE = "User with given username does not exist";
+    private final static String REPOSITORY_RETRIEVAL_ERROR_MESSAGE = "Error while retrieving repositories for given user";
+    private final static String BRANCHES_RETRIEVAL_ERROR_MESSAGE = "Error while retrieving branches for given repository";
 
     public Flux<GitHubRepoOut> getUserRepositories(String username) {
         final String URL = String.format(GITHUB_API_REPO_URL, username);
 
         Flux<GitHubRepo> repoFlux = webClient
                 .get()
-                .uri(URL).retrieve().onStatus(
+                .uri(URL)
+                .retrieve()
+                .onStatus(
                         HttpStatus.NOT_FOUND::equals,
                         clientResponse -> Mono.error(new UserNotFoundException(USER_NOT_FOUND_MESSAGE)))
                 .bodyToFlux(GitHubRepo.class)
+                .onErrorResume(ex -> {
+                    if (ex instanceof UserNotFoundException)
+                        return Mono.error(ex);
+                    else
+                        return Mono.error(new GitHubResponseException(REPOSITORY_RETRIEVAL_ERROR_MESSAGE));
+                })
                 .filter(repo -> !repo.fork());
 
         Flux<List<Branch>> branchesFlux =
@@ -55,6 +66,6 @@ public class GitHubService {
         final String URL = String.format(GITHUB_API_BRANCHES_URL, username, repositoryName);
         return webClient.get().uri(URL).retrieve()
                 .bodyToFlux(Branch.class)
-                .onErrorResume(ex -> Mono.empty());
+                .onErrorResume(ex -> Mono.error(new GitHubResponseException(BRANCHES_RETRIEVAL_ERROR_MESSAGE)));
     }
 }

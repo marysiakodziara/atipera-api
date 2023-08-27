@@ -34,4 +34,9 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
         return new ResponseEntity<>(errorResponseBody, HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(GitHubResponseException.class)
+    protected ResponseEntity<ErrorResponseBody> handleGitHubResponse(GitHubResponseException ex) {
+        ErrorResponseBody errorResponseBody = new ErrorResponseBody(HttpStatus.INTERNAL_SERVER_ERROR.value(), ex.getMessage());
+        return new ResponseEntity<>(errorResponseBody, HttpStatus.INTERNAL_SERVER_ERROR);
+    }
 }

@@ -1,10 +1,10 @@
 package com.example.atiperaapi.controller;
 
+import com.example.atiperaapi.exception.GitHubResponseException;
 import com.example.atiperaapi.exception.UserNotFoundException;
 import com.example.atiperaapi.out.BranchOut;
 import com.example.atiperaapi.out.GitHubRepoOut;
 import com.example.atiperaapi.service.GitHubService;
-import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -51,8 +51,28 @@ public class GitHubControllerTests {
                 .exchange()
                 // then
                 .expectStatus().isOk()
-                .expectBody(GitHubRepoOut.class)
-                .isEqualTo(repo);
+                .expectBodyList(GitHubRepoOut.class)
+                .hasSize(1)
+                .contains(repo);
+    }
+
+    @Test
+    public void testGetUserRepositories_userWithZeroRepositories() {
+        // given
+        final String USER_NAME = "test";
+        final String URI_TO_TEST = String.format("/api/v1/github?username=%s", USER_NAME);
+
+        given(gitHubService.getUserRepositories(anyString())).willReturn(Flux.empty());
+
+        // when
+        webTestClient
+                .get()
+                .uri(URI_TO_TEST)
+                .exchange()
+                // then
+                .expectStatus().isOk()
+                .expectBodyList(GitHubRepoOut.class)
+                .hasSize(0);
     }
 
 
@@ -79,27 +99,6 @@ public class GitHubControllerTests {
     }
 
     @Test
-    public void testGetUserRepositories_successOnErrorInGetBranches() {
-        // given
-        GitHubRepoOut repo = new GitHubRepoOut("test-name", "test-owner", Collections.emptyList());
-
-        final String URI_TO_TEST = String.format("/api/v1/github?username=%s", repo.owner());
-
-        given(gitHubService.getUserRepositories(anyString())).willReturn(Flux.just(repo));
-        given(gitHubService.getBranches(anyString(), anyString())).willReturn(Flux.error(new RuntimeException()));
-
-        // when
-        webTestClient
-                .get()
-                .uri(URI_TO_TEST)
-                .exchange()
-                // then
-                .expectStatus().isOk()
-                .expectBody(GitHubRepoOut.class)
-                .isEqualTo(repo);
-    }
-
-    @Test
     public void testGetUserRepositories_notAcceptable() {
         // given
         final String USER_NAME = "test";
@@ -115,5 +114,26 @@ public class GitHubControllerTests {
                 .expectStatus().isEqualTo(406);
 
         Mockito.verify(gitHubService, never()).getUserRepositories(any());
+    }
+
+    @Test
+    public void testGetUserRepositories_errorResponseBodyPresentOnError() {
+        //given
+        final String USER_NAME = "test";
+        final String URI_TO_TEST = String.format("/api/v1/github?username=%s", USER_NAME);
+        final String ERROR_MESSAGE = "test";
+
+        given(gitHubService.getUserRepositories(anyString()))
+                .willReturn(Flux.error(new GitHubResponseException(ERROR_MESSAGE)));
+        //when
+        webTestClient
+                .get()
+                .uri(URI_TO_TEST)
+                .exchange()
+                //then
+                .expectStatus().isEqualTo(500)
+                .expectBody()
+                .jsonPath("$.message").isEqualTo(ERROR_MESSAGE)
+                .jsonPath("$.status").isEqualTo(500);
     }
 }
