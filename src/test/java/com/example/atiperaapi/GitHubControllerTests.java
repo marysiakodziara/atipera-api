@@ -2,7 +2,9 @@ package com.example.atiperaapi;
 
 import com.example.atiperaapi.exception.UserNotFoundException;
 import com.example.atiperaapi.model.Branch;
+import com.example.atiperaapi.model.Commit;
 import com.example.atiperaapi.model.GitHubRepo;
+import com.example.atiperaapi.model.Owner;
 import com.example.atiperaapi.service.GitHubService;
 import java.util.Collections;
 import java.util.List;
@@ -34,15 +36,10 @@ public class GitHubControllerTests {
     @Test
     public void testGetUserRepositories_success() {
         // given
-        Branch branch = Branch.builder()
-                .name("master")
-                .lastCommitSha("test-commit-sha")
-                .build();
-        GitHubRepo repo = GitHubRepo.builder()
-                .name("test-name")
-                .owner("test-owner")
-                .branches(List.of(branch))
-                .build();
+        Commit commit = new Commit("test-sha");
+        Branch branch = new Branch("master", commit);
+        Owner owner = new Owner("test-owner");
+        GitHubRepo repo = new GitHubRepo("test-name", owner, List.of(branch));
 
         final String URI_TO_TEST = String.format("/api/v1/github?username=%s", repo.getOwner());
 
@@ -55,9 +52,11 @@ public class GitHubControllerTests {
                 .exchange()
                 // then
                 .expectStatus().isOk()
-                .expectBodyList(GitHubRepo.class)
-                .hasSize(1)
-                .contains(repo);
+                .expectBody()
+                .jsonPath("[0].name").isEqualTo("test-name")
+                .jsonPath("[0].owner").isEqualTo("test-owner")
+                .jsonPath("[0].branches[0].name").isEqualTo("master")
+                .jsonPath("[0].branches[0].commit").isEqualTo("test-sha");
     }
 
     @Test
@@ -85,11 +84,8 @@ public class GitHubControllerTests {
     @Test
     public void testGetUserRepositories_successOnErrorInGetBranches() {
         // given
-        GitHubRepo repo = GitHubRepo.builder()
-                .name("test-name")
-                .owner("test-owner")
-                .branches(Collections.emptyList())
-                .build();
+        Owner owner = new Owner("test-owner");
+        GitHubRepo repo = new GitHubRepo("test-name", owner, Collections.emptyList());
 
         final String URI_TO_TEST = String.format("/api/v1/github?username=%s", repo.getOwner());
 
@@ -103,9 +99,10 @@ public class GitHubControllerTests {
                 .exchange()
                 // then
                 .expectStatus().isOk()
-                .expectBodyList(GitHubRepo.class)
-                .hasSize(1)
-                .contains(repo);
+                .expectBody()
+                .jsonPath("[0].name").isEqualTo("test-name")
+                .jsonPath("[0].owner").isEqualTo("test-owner")
+                .jsonPath("[0].branches").isEmpty();
     }
 
     @Test

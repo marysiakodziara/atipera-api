@@ -1,15 +1,19 @@
 package com.example.atiperaapi.model;
 
+import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.ToString;
 
 @Getter
-@Builder
 @EqualsAndHashCode
 @ToString
+@NoArgsConstructor
+@AllArgsConstructor
 public class Branch {
-    public final String name;
-    public final String lastCommitSha;
+    public String name;
+    public Commit commit;
+
 }

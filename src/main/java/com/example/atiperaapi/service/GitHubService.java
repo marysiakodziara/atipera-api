@@ -3,7 +3,9 @@ package com.example.atiperaapi.service;
 import com.example.atiperaapi.exception.UserNotFoundException;
 import com.example.atiperaapi.model.Branch;
 import com.example.atiperaapi.model.GitHubRepo;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -16,6 +18,9 @@ import reactor.core.scheduler.Schedulers;
 public class GitHubService {
 
     private final WebClient webClient;
+
+    private final ObjectMapper mapper = new ObjectMapper()
+            .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
     public GitHubService(WebClient.Builder webClientBuilder) {
         this.webClient = webClientBuilder.build();
@@ -36,19 +41,17 @@ public class GitHubService {
                 clientResponse -> Mono.error(new UserNotFoundException("User with given username does not exist")))
                 .bodyToFlux(JsonNode.class)
                 .filter(repo -> !repo.get("fork").asBoolean())
+                .map(node -> mapper.convertValue(node, GitHubRepo.class))
                 .flatMap(repo -> {
-                    String repoName = repo.get("name").asText();
-                    String owner = repo.get("owner").get("login").asText();
-                    Flux<Branch> branches = getBranches(owner, repoName)
+                    Flux<Branch> branches = getBranches(repo.getOwner().login, repo.getName())
                             .subscribeOn(Schedulers.parallel());
 
                     return branches.collectList()
-                            .zipWith(Mono.just(owner), (branchList, repoOwner) ->
-                                    GitHubRepo.builder()
-                                            .name(repoName)
-                                            .owner(repoOwner)
-                                            .branches(branchList)
-                                            .build()
+                            .zipWith(Mono.just(repo.getOwner().login), (branchList, repoOwner) ->
+                                    {
+                                        repo.setBranches(branchList);
+                                        return repo;
+                                    }
                             );
                 });
     }
@@ -58,9 +61,6 @@ public class GitHubService {
         return webClient.get().uri(url).retrieve()
                 .bodyToFlux(JsonNode.class)
                 .onErrorResume(ex -> Mono.empty())
-                .map(branch -> Branch.builder()
-                    .name(branch.get("name").asText())
-                    .lastCommitSha(branch.get("commit").get("sha").asText())
-                    .build());
+                .map(node -> mapper.convertValue(node, Branch.class));
     }
 }

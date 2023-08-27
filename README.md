@@ -25,17 +25,17 @@ to application/json to retrieve a list of the user's repositories that are not f
 ```
 
 >  If the Accept header is set to application/xml, the API responds with a 406 message to indicate an unsupported format.
-```xml
-<ErrorResponse>
-    <status>406</status>
-    <message>The application does not support XML response</message>
-</ErrorResponse>
+```json
+{
+  "status": 406,
+  "message": "Accept header should be: [Accept:\"application/json\"]"
+}
 ```
 
 ## Endpoints <a name="endpoints"/>
 * **List User Repositories**
 ```console
-GET /api/repositories?username={username}
+GET /api/v1/github?username={username}
 Accept: application/json
 ```
 
