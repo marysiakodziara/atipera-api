@@ -13,12 +13,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.reactive.server.WebTestClient;
+import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
 
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
@@ -34,13 +35,16 @@ public class GitHubControllerTests {
     @MockBean
     private GitHubService gitHubService;
 
+    String URL_BASE = "/api/v1/github?username={username}";
+
     @Test
     public void testGetUserRepositories_success() {
         // given
         BranchOut branch = new BranchOut("master", "test-sha");
         GitHubRepoOut repo = new GitHubRepoOut("test-name", "test-owner",  List.of(branch));
-
-        final String URI_TO_TEST = String.format("/api/v1/github?username=%s", repo.owner());
+        final String URI_TO_TEST = UriComponentsBuilder.fromUriString(URL_BASE)
+                .buildAndExpand(repo.owner())
+                .toUriString();
 
         given(gitHubService.getUserRepositories(anyString())).willReturn(Flux.just(repo));
 
@@ -60,7 +64,9 @@ public class GitHubControllerTests {
     public void testGetUserRepositories_userWithZeroRepositories() {
         // given
         final String USER_NAME = "test";
-        final String URI_TO_TEST = String.format("/api/v1/github?username=%s", USER_NAME);
+        final String URI_TO_TEST = UriComponentsBuilder.fromUriString(URL_BASE)
+                .buildAndExpand(USER_NAME)
+                .toUriString();
 
         given(gitHubService.getUserRepositories(anyString())).willReturn(Flux.empty());
 
@@ -81,7 +87,9 @@ public class GitHubControllerTests {
         // given
         final String ERROR_MESSAGE = "User with given username does not exist";
         final String USER_NAME = "test";
-        final String URI_TO_TEST = String.format("/api/v1/github?username=%s", USER_NAME);
+        final String URI_TO_TEST = UriComponentsBuilder.fromUriString(URL_BASE)
+                .buildAndExpand(USER_NAME)
+                .toUriString();
 
         given(gitHubService.getUserRepositories(anyString()))
                 .willReturn(Flux.error(new UserNotFoundException(ERROR_MESSAGE)));
@@ -95,14 +103,16 @@ public class GitHubControllerTests {
                 .expectStatus().isNotFound()
                 .expectBody()
                 .jsonPath("$.message").isEqualTo(ERROR_MESSAGE)
-                .jsonPath("$.status").isEqualTo(404);
+                .jsonPath("$.status").isEqualTo(HttpStatus.NOT_FOUND.value());
     }
 
     @Test
     public void testGetUserRepositories_notAcceptable() {
         // given
         final String USER_NAME = "test";
-        final String URI_TO_TEST = String.format("/api/v1/github?username=%s", USER_NAME);
+        final String URI_TO_TEST = UriComponentsBuilder.fromUriString(URL_BASE)
+                .buildAndExpand(USER_NAME)
+                .toUriString();
 
         // when
         webTestClient
@@ -111,16 +121,18 @@ public class GitHubControllerTests {
                 .accept(MediaType.APPLICATION_XML)
                 .exchange()
                 // then
-                .expectStatus().isEqualTo(406);
+                .expectStatus().isEqualTo(HttpStatus.NOT_ACCEPTABLE.value());
 
-        Mockito.verify(gitHubService, never()).getUserRepositories(any());
+        Mockito.verify(gitHubService, never()).getUserRepositories(anyString());
     }
 
     @Test
     public void testGetUserRepositories_errorResponseBodyPresentOnError() {
         //given
         final String USER_NAME = "test";
-        final String URI_TO_TEST = String.format("/api/v1/github?username=%s", USER_NAME);
+        final String URI_TO_TEST = UriComponentsBuilder.fromUriString(URL_BASE)
+                .buildAndExpand(USER_NAME)
+                .toUriString();
         final String ERROR_MESSAGE = "test";
 
         given(gitHubService.getUserRepositories(anyString()))
@@ -131,9 +143,9 @@ public class GitHubControllerTests {
                 .uri(URI_TO_TEST)
                 .exchange()
                 //then
-                .expectStatus().isEqualTo(500)
+                .expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value())
                 .expectBody()
                 .jsonPath("$.message").isEqualTo(ERROR_MESSAGE)
-                .jsonPath("$.status").isEqualTo(500);
+                .jsonPath("$.status").isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
     }
 }

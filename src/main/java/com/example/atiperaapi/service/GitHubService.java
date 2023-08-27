@@ -6,11 +6,14 @@ import com.example.atiperaapi.model.Branch;
 import com.example.atiperaapi.model.GitHubRepo;
 import com.example.atiperaapi.out.BranchOut;
 import com.example.atiperaapi.out.GitHubRepoOut;
+import java.net.URI;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.util.UriBuilder;
+import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -28,12 +31,11 @@ public class GitHubService {
 
     @Value("${github.api.branches.url}")
     private String GITHUB_API_BRANCHES_URL;
-    private final static String USER_NOT_FOUND_MESSAGE = "User with given username does not exist";
-    private final static String REPOSITORY_RETRIEVAL_ERROR_MESSAGE = "Error while retrieving repositories for given user";
-    private final static String BRANCHES_RETRIEVAL_ERROR_MESSAGE = "Error while retrieving branches for given repository";
 
     public Flux<GitHubRepoOut> getUserRepositories(String username) {
-        final String URL = String.format(GITHUB_API_REPO_URL, username);
+        String URL = UriComponentsBuilder.fromUriString(GITHUB_API_REPO_URL)
+                .buildAndExpand(username)
+                .toUriString();
 
         Flux<GitHubRepo> repoFlux = webClient
                 .get()
@@ -41,13 +43,17 @@ public class GitHubService {
                 .retrieve()
                 .onStatus(
                         HttpStatus.NOT_FOUND::equals,
-                        clientResponse -> Mono.error(new UserNotFoundException(USER_NOT_FOUND_MESSAGE)))
+                        clientResponse -> Mono
+                                .error(new UserNotFoundException(GitHubServiceErrorMessages
+                                        .USER_NOT_FOUND_MESSAGE)))
                 .bodyToFlux(GitHubRepo.class)
                 .onErrorResume(ex -> {
                     if (ex instanceof UserNotFoundException)
                         return Mono.error(ex);
                     else
-                        return Mono.error(new GitHubResponseException(REPOSITORY_RETRIEVAL_ERROR_MESSAGE));
+                        return Mono
+                                .error(new GitHubResponseException(GitHubServiceErrorMessages
+                                        .REPOSITORY_RETRIEVAL_ERROR_MESSAGE));
                 })
                 .filter(repo -> !repo.fork());
 
@@ -63,9 +69,12 @@ public class GitHubService {
     }
 
     public Flux<Branch> getBranches(String username, String repositoryName) {
-        final String URL = String.format(GITHUB_API_BRANCHES_URL, username, repositoryName);
+        final String URL = UriComponentsBuilder.fromUriString(GITHUB_API_BRANCHES_URL)
+                .buildAndExpand(username, repositoryName)
+                .toUriString();
+
         return webClient.get().uri(URL).retrieve()
                 .bodyToFlux(Branch.class)
-                .onErrorResume(ex -> Mono.error(new GitHubResponseException(BRANCHES_RETRIEVAL_ERROR_MESSAGE)));
+                .onErrorResume(ex -> Mono.error(new GitHubResponseException(GitHubServiceErrorMessages.BRANCHES_RETRIEVAL_ERROR_MESSAGE)));
     }
 }
