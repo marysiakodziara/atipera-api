@@ -1,6 +1,5 @@
 package com.example.atiperaapi.controller;
 
-import com.example.atiperaapi.model.GitHubRepo;
 import com.example.atiperaapi.out.GitHubRepoOut;
 import com.example.atiperaapi.service.GitHubService;
 import lombok.RequiredArgsConstructor;

@@ -5,7 +5,7 @@ import com.example.atiperaapi.exception.ToManyRequestsException;
 import com.example.atiperaapi.exception.UserNotFoundException;
 import com.example.atiperaapi.out.BranchOut;
 import com.example.atiperaapi.out.GitHubRepoOut;
-import com.example.atiperaapi.service.GitHubService;
+import com.example.atiperaapi.service.BaseGitHubService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -34,7 +34,7 @@ public class GitHubControllerTests {
     private WebTestClient webTestClient;
 
     @MockBean
-    private GitHubService gitHubService;
+    private BaseGitHubService gitHubService;
 
     String URL_BASE = "/api/v1/github?username={username}";
 
