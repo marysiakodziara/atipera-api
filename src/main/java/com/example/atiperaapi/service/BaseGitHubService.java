@@ -1,11 +1,11 @@
 package com.example.atiperaapi.service;
 
+import com.example.atiperaapi.config.GitHubApiProperties;
 import com.example.atiperaapi.model.Branch;
 import com.example.atiperaapi.model.GitHubRepo;
 import com.example.atiperaapi.out.BranchOut;
 import com.example.atiperaapi.out.GitHubRepoOut;
 import java.util.List;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -17,20 +17,16 @@ import reactor.core.publisher.Mono;
 public class BaseGitHubService implements GitHubService {
 
     private final WebClient webClient;
+    private final GitHubApiProperties gitHubApiProperties;
 
-    public BaseGitHubService(WebClient.Builder webClientBuilder) {
+    public BaseGitHubService(WebClient.Builder webClientBuilder, GitHubApiProperties gitHubApiProperties) {
         this.webClient = webClientBuilder.build();
+        this.gitHubApiProperties = gitHubApiProperties;
     }
-
-    @Value("${github.api.repo.url}")
-    private String GITHUB_API_REPO_URL;
-
-    @Value("${github.api.branches.url}")
-    private String GITHUB_API_BRANCHES_URL;
 
     @Override
     public Flux<GitHubRepoOut> getUserRepositories(String username) {
-        String URL = UriComponentsBuilder.fromUriString(GITHUB_API_REPO_URL)
+        String URL = UriComponentsBuilder.fromUriString(gitHubApiProperties.repoUrl())
                 .buildAndExpand(username)
                 .toUriString();
 
@@ -58,7 +54,7 @@ public class BaseGitHubService implements GitHubService {
 
     @Override
     public Flux<Branch> getBranches(String username, String repositoryName) {
-        final String URL = UriComponentsBuilder.fromUriString(GITHUB_API_BRANCHES_URL)
+        String URL = UriComponentsBuilder.fromUriString(gitHubApiProperties.branchesUrl())
                 .buildAndExpand(username, repositoryName)
                 .toUriString();
 

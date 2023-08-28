@@ -168,7 +168,7 @@ public class GitHubControllerTests {
                 .uri(URI_TO_TEST)
                 .exchange()
                 // then
-                .expectStatus().isNotFound()
+                .expectStatus().isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value())
                 .expectBody()
                 .jsonPath("$.message").isEqualTo(ERROR_MESSAGE)
                 .jsonPath("$.status").isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
