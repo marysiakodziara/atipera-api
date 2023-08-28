@@ -1,6 +1,7 @@
 package com.example.atiperaapi.controller;
 
 import com.example.atiperaapi.exception.GitHubResponseException;
+import com.example.atiperaapi.exception.ToManyRequestsException;
 import com.example.atiperaapi.exception.UserNotFoundException;
 import com.example.atiperaapi.out.BranchOut;
 import com.example.atiperaapi.out.GitHubRepoOut;
@@ -147,5 +148,29 @@ public class GitHubControllerTests {
                 .expectBody()
                 .jsonPath("$.message").isEqualTo(ERROR_MESSAGE)
                 .jsonPath("$.status").isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
+    }
+
+    @Test
+    public void testGetUserRepositories_toManyRequests() {
+        // given
+        final String ERROR_MESSAGE = "GitHub API rate limit exceeded. Please try again later.";
+        final String USER_NAME = "test";
+        final String URI_TO_TEST = UriComponentsBuilder.fromUriString(URL_BASE)
+                .buildAndExpand(USER_NAME)
+                .toUriString();
+
+        given(gitHubService.getUserRepositories(anyString()))
+                .willReturn(Flux.error(new ToManyRequestsException(ERROR_MESSAGE)));
+
+        // when
+        webTestClient
+                .get()
+                .uri(URI_TO_TEST)
+                .exchange()
+                // then
+                .expectStatus().isNotFound()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo(ERROR_MESSAGE)
+                .jsonPath("$.status").isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
     }
 }

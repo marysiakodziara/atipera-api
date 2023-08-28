@@ -1,18 +1,14 @@
 package com.example.atiperaapi.service;
 
-import com.example.atiperaapi.exception.GitHubResponseException;
-import com.example.atiperaapi.exception.UserNotFoundException;
 import com.example.atiperaapi.model.Branch;
 import com.example.atiperaapi.model.GitHubRepo;
 import com.example.atiperaapi.out.BranchOut;
 import com.example.atiperaapi.out.GitHubRepoOut;
-import java.net.URI;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.util.UriBuilder;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -41,21 +37,12 @@ public class GitHubService {
                 .get()
                 .uri(URL)
                 .retrieve()
-                .onStatus(
-                        HttpStatus.NOT_FOUND::equals,
-                        clientResponse -> Mono
-                                .error(new UserNotFoundException(GitHubServiceErrorMessages
-                                        .USER_NOT_FOUND_MESSAGE)))
+                .onStatus(HttpStatus.NOT_FOUND::equals, ErrorHandler::handleNotFoundStatus)
+                .onStatus(HttpStatus.FORBIDDEN::equals, ErrorHandler::handleForbiddenStatus)
+                .onStatus(HttpStatus.TOO_MANY_REQUESTS::equals, ErrorHandler::handleTooManyRequestsStatus)
                 .bodyToFlux(GitHubRepo.class)
-                .onErrorResume(ex -> {
-                    if (ex instanceof UserNotFoundException)
-                        return Mono.error(ex);
-                    else
-                        return Mono
-                                .error(new GitHubResponseException(GitHubServiceErrorMessages
-                                        .REPOSITORY_RETRIEVAL_ERROR_MESSAGE));
-                })
-                .filter(repo -> !repo.fork());
+                .filter(repo -> !repo.fork())
+                .onErrorResume(ex -> Mono.error(ErrorHandler.handleProcessingErrors(ex)));
 
         Flux<List<Branch>> branchesFlux =
                 repoFlux.flatMap(repo -> getBranches(repo.owner().login(), repo.name()).collectList());
@@ -73,8 +60,13 @@ public class GitHubService {
                 .buildAndExpand(username, repositoryName)
                 .toUriString();
 
-        return webClient.get().uri(URL).retrieve()
+        return webClient
+                .get()
+                .uri(URL)
+                .retrieve()
+                .onStatus(HttpStatus.FORBIDDEN::equals, ErrorHandler::handleForbiddenStatus)
+                .onStatus(HttpStatus.TOO_MANY_REQUESTS::equals, ErrorHandler::handleTooManyRequestsStatus)
                 .bodyToFlux(Branch.class)
-                .onErrorResume(ex -> Mono.error(new GitHubResponseException(GitHubServiceErrorMessages.BRANCHES_RETRIEVAL_ERROR_MESSAGE)));
+                .onErrorResume(ex -> Mono.error(ErrorHandler.handleProcessingErrors(ex)));
     }
 }
