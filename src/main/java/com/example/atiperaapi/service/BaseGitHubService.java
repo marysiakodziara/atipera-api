@@ -11,7 +11,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 @Service
 public class BaseGitHubService implements GitHubService {
@@ -38,8 +37,7 @@ public class BaseGitHubService implements GitHubService {
                 .onStatus(HttpStatus.FORBIDDEN::equals, ErrorHandler::handleForbiddenStatus)
                 .onStatus(HttpStatus.TOO_MANY_REQUESTS::equals, ErrorHandler::handleTooManyRequestsStatus)
                 .bodyToFlux(GitHubRepo.class)
-                .filter(repo -> !repo.fork())
-                .onErrorResume(ex -> Mono.error(ErrorHandler.handleProcessingErrors(ex)));
+                .filter(repo -> !repo.fork());
 
         Flux<List<Branch>> branchesFlux =
                 repoFlux.flatMap(repo -> getBranches(repo.owner().login(), repo.name()).collectList());
@@ -64,7 +62,6 @@ public class BaseGitHubService implements GitHubService {
                 .retrieve()
                 .onStatus(HttpStatus.FORBIDDEN::equals, ErrorHandler::handleForbiddenStatus)
                 .onStatus(HttpStatus.TOO_MANY_REQUESTS::equals, ErrorHandler::handleTooManyRequestsStatus)
-                .bodyToFlux(Branch.class)
-                .onErrorResume(ex -> Mono.error(ErrorHandler.handleProcessingErrors(ex)));
+                .bodyToFlux(Branch.class);
     }
 }

@@ -1,6 +1,5 @@
 package com.example.atiperaapi.controller;
 
-import com.example.atiperaapi.exception.GitHubResponseException;
 import com.example.atiperaapi.exception.ToManyRequestsException;
 import com.example.atiperaapi.exception.UserNotFoundException;
 import com.example.atiperaapi.factory.DataFactory;
@@ -122,17 +121,14 @@ public class GitHubControllerTests {
         final String ERROR_MESSAGE = DataFactory.getRandomString(10);
 
         given(gitHubService.getUserRepositories(anyString()))
-                .willReturn(Flux.error(new GitHubResponseException(ERROR_MESSAGE)));
+                .willReturn(Flux.error(new RuntimeException(ERROR_MESSAGE)));
         //when
         webTestClient
                 .get()
                 .uri(URI_TO_TEST)
                 .exchange()
                 //then
-                .expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value())
-                .expectBody()
-                .jsonPath("$.message").isEqualTo(ERROR_MESSAGE)
-                .jsonPath("$.status").isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
+                .expectStatus().isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR.value());
     }
 
     @Test

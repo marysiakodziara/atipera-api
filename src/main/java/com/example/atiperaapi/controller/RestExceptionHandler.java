@@ -1,9 +1,9 @@
 package com.example.atiperaapi.controller;
 
-import com.example.atiperaapi.exception.ErrorResponseBody;
-import com.example.atiperaapi.exception.GitHubResponseException;
+import com.example.atiperaapi.out.ErrorResponseBody;
 import com.example.atiperaapi.exception.ToManyRequestsException;
 import com.example.atiperaapi.exception.UserNotFoundException;
+import java.util.UUID;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpHeaders;
@@ -39,19 +39,31 @@ public class RestExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(UserNotFoundException.class)
     protected ResponseEntity<ErrorResponseBody> handleUserNotFound(UserNotFoundException ex) {
-        ErrorResponseBody errorResponseBody = new ErrorResponseBody(HttpStatus.NOT_FOUND.value(), ex.getMessage());
-        return new ResponseEntity<>(errorResponseBody, HttpStatus.NOT_FOUND);
-    }
-
-    @ExceptionHandler(GitHubResponseException.class)
-    protected ResponseEntity<ErrorResponseBody> handleGitHubResponse(GitHubResponseException ex) {
-        ErrorResponseBody errorResponseBody = new ErrorResponseBody(HttpStatus.INTERNAL_SERVER_ERROR.value(), ex.getMessage());
-        return new ResponseEntity<>(errorResponseBody, HttpStatus.INTERNAL_SERVER_ERROR);
+        return createErrorResponse(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
     @ExceptionHandler(ToManyRequestsException.class)
     protected ResponseEntity<ErrorResponseBody> handleToManyRequests(ToManyRequestsException ex) {
-        ErrorResponseBody errorResponseBody = new ErrorResponseBody(HttpStatus.TOO_MANY_REQUESTS.value(), ex.getMessage());
-        return new ResponseEntity<>(errorResponseBody, HttpStatus.TOO_MANY_REQUESTS);
+        return createErrorResponse(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
+    }
+
+    @ExceptionHandler(RuntimeException.class)
+    protected ResponseEntity<ErrorResponseBody> handleRuntimeException(RuntimeException ex) {
+        final String referenceId = generateReferenceId();
+        final String errorMessage = String.format("An internal error occurred. Please contact support with reference ID: %s", referenceId);
+
+        final String logMessage = String.format("Reference ID: %s", referenceId);
+        logger.error(logMessage, ex);
+
+        return createErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR, errorMessage);
+    }
+
+    private ResponseEntity<ErrorResponseBody> createErrorResponse(HttpStatus status, String message) {
+        ErrorResponseBody errorResponseBody = new ErrorResponseBody(status.value(), message);
+        return new ResponseEntity<>(errorResponseBody, status);
+    }
+
+    private String generateReferenceId() {
+        return UUID.randomUUID().toString();
     }
 }
