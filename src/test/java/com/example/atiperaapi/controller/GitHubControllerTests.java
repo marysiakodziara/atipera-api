@@ -3,10 +3,9 @@ package com.example.atiperaapi.controller;
 import com.example.atiperaapi.exception.GitHubResponseException;
 import com.example.atiperaapi.exception.ToManyRequestsException;
 import com.example.atiperaapi.exception.UserNotFoundException;
-import com.example.atiperaapi.out.BranchOut;
+import com.example.atiperaapi.factory.DataFactory;
 import com.example.atiperaapi.out.GitHubRepoOut;
 import com.example.atiperaapi.service.BaseGitHubService;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
@@ -36,16 +35,13 @@ public class GitHubControllerTests {
     @MockBean
     private BaseGitHubService gitHubService;
 
-    String URL_BASE = "/api/v1/github?username={username}";
+    private static final String URL_BASE = "/api/v1/github?username={username}";
 
     @Test
     public void testGetUserRepositories_success() {
         // given
-        BranchOut branch = new BranchOut("master", "test-sha");
-        GitHubRepoOut repo = new GitHubRepoOut("test-name", "test-owner",  List.of(branch));
-        final String URI_TO_TEST = UriComponentsBuilder.fromUriString(URL_BASE)
-                .buildAndExpand(repo.owner())
-                .toUriString();
+        GitHubRepoOut repo = DataFactory.randomGitHubRepoOut();
+        final String URI_TO_TEST = buildUri(DataFactory.getRandomString(10));
 
         given(gitHubService.getUserRepositories(anyString())).willReturn(Flux.just(repo));
 
@@ -64,10 +60,8 @@ public class GitHubControllerTests {
     @Test
     public void testGetUserRepositories_userWithZeroRepositories() {
         // given
-        final String USER_NAME = "test";
-        final String URI_TO_TEST = UriComponentsBuilder.fromUriString(URL_BASE)
-                .buildAndExpand(USER_NAME)
-                .toUriString();
+        final String USER_NAME = DataFactory.getRandomString(10);
+        final String URI_TO_TEST = buildUri(DataFactory.getRandomString(10));
 
         given(gitHubService.getUserRepositories(anyString())).willReturn(Flux.empty());
 
@@ -86,11 +80,8 @@ public class GitHubControllerTests {
     @Test
     public void testGetUserRepositories_notFound() {
         // given
-        final String ERROR_MESSAGE = "User with given username does not exist";
-        final String USER_NAME = "test";
-        final String URI_TO_TEST = UriComponentsBuilder.fromUriString(URL_BASE)
-                .buildAndExpand(USER_NAME)
-                .toUriString();
+        final String ERROR_MESSAGE = DataFactory.getRandomString(10);
+        final String URI_TO_TEST = buildUri(DataFactory.getRandomString(10));
 
         given(gitHubService.getUserRepositories(anyString()))
                 .willReturn(Flux.error(new UserNotFoundException(ERROR_MESSAGE)));
@@ -110,10 +101,7 @@ public class GitHubControllerTests {
     @Test
     public void testGetUserRepositories_notAcceptable() {
         // given
-        final String USER_NAME = "test";
-        final String URI_TO_TEST = UriComponentsBuilder.fromUriString(URL_BASE)
-                .buildAndExpand(USER_NAME)
-                .toUriString();
+        final String URI_TO_TEST = buildUri(DataFactory.getRandomString(10));
 
         // when
         webTestClient
@@ -130,11 +118,8 @@ public class GitHubControllerTests {
     @Test
     public void testGetUserRepositories_errorResponseBodyPresentOnError() {
         //given
-        final String USER_NAME = "test";
-        final String URI_TO_TEST = UriComponentsBuilder.fromUriString(URL_BASE)
-                .buildAndExpand(USER_NAME)
-                .toUriString();
-        final String ERROR_MESSAGE = "test";
+        final String URI_TO_TEST = buildUri(DataFactory.getRandomString(10));
+        final String ERROR_MESSAGE = DataFactory.getRandomString(10);
 
         given(gitHubService.getUserRepositories(anyString()))
                 .willReturn(Flux.error(new GitHubResponseException(ERROR_MESSAGE)));
@@ -153,11 +138,8 @@ public class GitHubControllerTests {
     @Test
     public void testGetUserRepositories_toManyRequests() {
         // given
-        final String ERROR_MESSAGE = "GitHub API rate limit exceeded. Please try again later.";
-        final String USER_NAME = "test";
-        final String URI_TO_TEST = UriComponentsBuilder.fromUriString(URL_BASE)
-                .buildAndExpand(USER_NAME)
-                .toUriString();
+        final String ERROR_MESSAGE = DataFactory.getRandomString(10);
+        final String URI_TO_TEST = buildUri(DataFactory.getRandomString(10));
 
         given(gitHubService.getUserRepositories(anyString()))
                 .willReturn(Flux.error(new ToManyRequestsException(ERROR_MESSAGE)));
@@ -172,5 +154,11 @@ public class GitHubControllerTests {
                 .expectBody()
                 .jsonPath("$.message").isEqualTo(ERROR_MESSAGE)
                 .jsonPath("$.status").isEqualTo(HttpStatus.TOO_MANY_REQUESTS.value());
+    }
+
+    private String buildUri(String username){
+        return UriComponentsBuilder.fromUriString(URL_BASE)
+                .buildAndExpand(username)
+                .toUriString();
     }
 }
